@@ -1,0 +1,21 @@
+# Data lives on the Hugging Face hub, not on GitHub
+dataset/
+*.zip
+*.jpg
+*.png
+*.mp4
+*.mkv
+
+# Training outputs and model weights (pushed to the HF hub)
+runs/
+*.pt
+*.onnx
+*.engine
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Secrets (API keys, HF token)
+.env
