@@ -20,8 +20,8 @@ are on the Hugging Face hub (account `Greynar`).
 |---|---|---|
 | 1. Extract images + split | `01_create_dataset_from_video.py` | done (OignonRouge80cm) |
 | 2. Label in Roboflow | (manual) | done: 30 images, export v2 (labels corrected) |
-| 3. Prepare the dataset + push it to the HF hub | `02_prepare_and_push_dataset.py` | done locally (v2), not pushed yet |
-| 4. Train YOLO-seg (GPU server) | `03_train.py` | to do |
+| 3. Prepare the dataset + push it to the HF hub | `02_prepare_and_push_dataset.py` | done: v2 pushed to the hub |
+| 4. Train YOLO-seg (GPU server) | `03_train.py` | written, tested on CPU (2 epochs); first GPU run to do |
 | 5. Evaluate on the test set | `04_evaluate.py` | to do |
 | 6. Run the model on a video | `05_infer_video.py` | to do |
 
@@ -115,12 +115,31 @@ Then set `PUSH_TO_HUB = True` and run it again. It uploads everything except
 (private), with a version tag (`HF_TAG`, same number as the Roboflow version, e.g. `v2`). You must be logged in once
 on the machine: `hf auth login`.
 
-### 4. Train — `03_train.py` (to do, run on the GPU server)
+### 4. Train — `03_train.py` (run on the GPU machine)
 
-On the GPU machine: `git clone` the code, `pip install -r requirements.txt`,
-`hf auth login`, then run the script. It downloads the dataset from the hub,
-fine-tunes YOLO11-seg from pretrained weights and pushes the trained model to
-the HF hub.
+First time on the GPU machine:
+
+```bash
+git clone git@github.com:gregbaltus/PermaBot_weed_detector_finetune_yolo_seg.git
+cd PermaBot_weed_detector_finetune_yolo_seg
+pip install -r requirements.txt
+hf auth login
+```
+
+Then set the variables at the top and run `python 03_train.py`. It:
+- downloads the dataset from the hub (`HF_DATASET_REPO` at the tag
+  `DATASET_REVISION`) into `dataset/hub/`;
+- fine-tunes `MODEL` (default `yolo11s-seg.pt`, pretrained on COCO) at `IMGSZ`
+  (default 1280, because the weeds are small), with vertical flips added to
+  Ultralytics' default augmentations;
+- saves the run in `runs/<RUN_NAME>/` (`RUN_NAME` = dataset, version, model,
+  image size and date);
+- if `PUSH_TO_HUB` is True, uploads `best.pt`, the training curves, the
+  confusion matrix and a model card to the private model repo
+  `Greynar/permabot_weed_seg_yolo`, in a folder named `<RUN_NAME>/`. Each run
+  has its own folder, so runs can be compared.
+
+If the GPU runs out of memory, lower `BATCH` (or set it to -1 for automatic).
 
 ### 5. Evaluate — `04_evaluate.py` (to do)
 
