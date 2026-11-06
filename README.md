@@ -21,9 +21,9 @@ are on the Hugging Face hub (account `Greynar`).
 | 1. Extract images + split | `01_create_dataset_from_video.py` | done (OignonRouge80cm) |
 | 2. Label in Roboflow | (manual) | done: 30 images, export v2 (labels corrected) |
 | 3. Prepare the dataset + push it to the HF hub | `02_prepare_and_push_dataset.py` | done: v2 pushed to the hub |
-| 4. Train YOLO-seg (GPU server) | `03_train.py` | written, tested on CPU (2 epochs); first GPU run to do |
-| 5. Evaluate on the test set | `04_evaluate.py` | to do |
-| 6. Run the model on a video | `05_infer_video.py` | to do |
+| 4. Train YOLO-seg (GPU server) | `03_train.py` | done: first GPU run (yolo11s-seg, 1280), model on the hub and in `model/` |
+| 5. Evaluate on the test set | `04_evaluate.py` | done for the first run (test mask mAP50: weed 0.72, onion 0.38) |
+| 6. Run the model on a video | `05_infer_video.py` | done, tested on a clip of OignonRouge80cm |
 
 Plan: first test the whole pipeline on a few images of one video (stage A), then
 label all onion videos (stage B), then all crops (stage C). After that, add the
@@ -141,13 +141,53 @@ Then set the variables at the top and run `python 03_train.py`. It:
 
 If the GPU runs out of memory, lower `BATCH` (or set it to -1 for automatic).
 
-### 5. Evaluate — `04_evaluate.py` (to do)
+**After training: get the model on the local computer.** The trained models are
+in the hub repo `Greynar/permabot_weed_seg_yolo` (one folder per run). Clone it
+into `model/` (needs `git lfs install` once, so that `best.pt` is downloaded
+and not just a small pointer file):
 
-Compute per-class metrics on the test set.
+```bash
+cd model
+git clone https://huggingface.co/Greynar/permabot_weed_seg_yolo   # first time
+cd permabot_weed_seg_yolo && git pull                               # after each new run
+```
 
-### 6. Run on a video — `05_infer_video.py` (to do)
+Each run is then in `model/permabot_weed_seg_yolo/<RUN_NAME>/`, with the weights
+in `weights/best.pt`. `model/` is in `.gitignore`: it is a separate repo and
+must not be committed with the code.
 
-Write an annotated video with the predicted masks.
+### 5. Evaluate — `04_evaluate.py`
+
+Set `RUN_DIR` (a run folder in `model/permabot_weed_seg_yolo/`) and the dataset
+repo / version at the top, then run it (works on CPU). It:
+- downloads the dataset version from the hub (same as for training);
+- computes per-class precision, recall and mAP (boxes and masks) on `SPLIT`
+  (`test` by default: images never seen during training);
+- saves, for each image, a comparison picture: ground truth on top, model
+  prediction below, with the confidence of each detection.
+
+Output: `eval/<run name>_<split>/` with `metrics.csv`, `comparisons/` and the
+Ultralytics plots (confusion matrix, PR curves). `eval/` is not on GitHub.
+
+### 6. Run on a video — `05_infer_video.py`
+
+Set `VIDEO_NAME`, `START_TIME`, `DURATION` (None = until the end) and `RUN_DIR`
+at the top. It writes an annotated video with the same frame rate and length
+as the original, with the predicted masks drawn on every frame. The model only
+runs on distinct frames (each real frame is repeated about 6 times), and the
+repeated frames reuse the prediction.
+
+On the laptop CPU it takes about 0.8 s per distinct frame (about 4 s of
+computation per second of video): test on short clips, run full videos on the
+GPU machine.
+
+If `BANNER = True`, a banner shows the time, the number of onions and weeds,
+the inference time and the **zone** of the row, read from the step-01
+`manifest.csv`: TRAIN / VAL / TEST / BUFFER. Only TEST zones, and videos that
+were never used for the dataset (shown as UNSEEN VIDEO), show honest
+performance.
+
+Output: `inference/<video tag>_<run name>_<start>-<end>s.mp4` (not on GitHub).
 
 ## Folder layout
 
@@ -158,10 +198,15 @@ Code_finetune_yolo/
 ├── 01_create_dataset_from_video.py
 ├── 02_prepare_and_push_dataset.py
 ├── ...
-└── dataset/                        (not on GitHub)
-    ├── frames/<video tag>/         images extracted by 01 + manifest.csv
-    ├── roboflow_exports/           zips downloaded from Roboflow
-    └── prepared/<dataset name>/    YOLO-seg dataset made by 02 (+ previews/)
+├── dataset/                        (not on GitHub)
+│   ├── frames/<video tag>/         images extracted by 01 + manifest.csv
+│   ├── roboflow_exports/           zips downloaded from Roboflow
+│   ├── prepared/<dataset name>/    YOLO-seg dataset made by 02 (+ previews/)
+│   └── hub/                        dataset downloaded from the hub by 03 and 04
+├── eval/                           (not on GitHub) results of 04, one folder per run and split
+├── inference/                      (not on GitHub) annotated videos made by 05
+└── model/                          (not on GitHub)
+    └── permabot_weed_seg_yolo/     clone of the HF model repo, one folder per run
 ```
 
 ## Notes for the next recording session (spring)

@@ -7,7 +7,10 @@ dataset/
 *.mkv
 
 # Training outputs and model weights (pushed to the HF hub)
+model/
 runs/
+eval/
+inference/
 *.pt
 *.onnx
 *.engine
